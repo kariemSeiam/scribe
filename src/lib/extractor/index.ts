@@ -7,7 +7,40 @@ import type { ExtractionResult, VideoInfo } from '@/types'
 
 type Progress = (message: string) => void
 
+// Request deduplication — prevents duplicate extractions for the same URL
+const extractionCache = new Map<string, Promise<ExtractionResult>>()
+const CACHE_TTL = 5 * 60_000 // 5 minutes
+
+function normalizeUrl(url: string): string {
+  // Strip everything after videoId/playlistId/channelId to deduplicate variants
+  return url.split('&')[0].split('#')[0]
+}
+
+function getCachedExtraction(url: string): Promise<ExtractionResult> | null {
+  const key = normalizeUrl(url)
+  return extractionCache.get(key) ?? null
+}
+
+function setCachedExtraction(url: string, promise: Promise<ExtractionResult>): void {
+  const key = normalizeUrl(url)
+  extractionCache.set(key, promise)
+  setTimeout(() => extractionCache.delete(key), CACHE_TTL)
+}
+
 export async function extract(url: string, onProgress: Progress): Promise<ExtractionResult> {
+  // Check cache first — deduplicate concurrent/retry requests
+  const cached = getCachedExtraction(url)
+  if (cached) {
+    onProgress('Using cached result…')
+    return cached
+  }
+
+  const extractionPromise = performExtraction(url, onProgress)
+  setCachedExtraction(url, extractionPromise)
+  return extractionPromise
+}
+
+async function performExtraction(url: string, onProgress: Progress): Promise<ExtractionResult> {
   const videoId = extractVideoId(url)
   const playlistId = extractPlaylistId(url)
   const channelId = extractChannelId(url)

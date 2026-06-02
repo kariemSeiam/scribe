@@ -13,6 +13,19 @@ const CORS_PROXIES: ReadonlyArray<(url: string) => string> = [
 
 const TIMEOUT = 12_000
 
+// Deduplication cache — prevents duplicate requests for the same videoId
+const captionCache = new Map<string, Promise<TranscriptSegment[]>>()
+const CACHE_TTL = 10 * 60_000 // 10 minutes
+
+function getCached(videoId: string): Promise<TranscriptSegment[]> | null {
+  return captionCache.get(videoId) ?? null
+}
+
+function setCache(videoId: string, promise: Promise<TranscriptSegment[]>): void {
+  captionCache.set(videoId, promise)
+  setTimeout(() => captionCache.delete(videoId), CACHE_TTL)
+}
+
 interface YTJson3Event {
   tStartMs: number
   dDurationMs?: number
@@ -74,20 +87,29 @@ function raceProxies(ytUrl: string): Promise<TranscriptSegment[]> {
 }
 
 export async function fetchYouTubeCaptions(videoId: string): Promise<TranscriptSegment[]> {
-  // Try each caption URL in order. For each, race all CORS proxies simultaneously.
-  const captionUrls = [
-    // Manual English captions
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
-    // Auto-generated English (most videos have this even without manual captions)
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3&kind=asr`,
-    // Auto-translated to English (catches foreign-language videos)
-    `https://www.youtube.com/api/timedtext?v=${videoId}&fmt=json3&tlang=en`,
-  ]
+  // Check cache first — deduplicate concurrent requests for same videoId
+  const cached = getCached(videoId)
+  if (cached) return cached
 
-  for (const url of captionUrls) {
-    const segs = await raceProxies(url)
-    if (segs.length > 0) return segs
-  }
+  const fetchPromise = (async () => {
+    // Try each caption URL in order. For each, race all CORS proxies simultaneously.
+    const captionUrls = [
+      // Manual English captions
+      `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
+      // Auto-generated English (most videos have this even without manual captions)
+      `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3&kind=asr`,
+      // Auto-translated to English (catches foreign-language videos)
+      `https://www.youtube.com/api/timedtext?v=${videoId}&fmt=json3&tlang=en`,
+    ]
 
-  return []
+    for (const url of captionUrls) {
+      const segs = await raceProxies(url)
+      if (segs.length > 0) return segs
+    }
+
+    return []
+  })()
+
+  setCache(videoId, fetchPromise)
+  return fetchPromise
 }

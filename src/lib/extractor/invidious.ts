@@ -16,10 +16,28 @@ const API_TIMEOUT = 10_000
 const CAPTION_TIMEOUT = 14_000
 const DISCOVERY_TIMEOUT = 4_000
 const CACHE_TTL = 10 * 60 * 1000
+const CIRCUIT_BREAKER_TTL = 5 * 60 * 1000 // 5 minutes
 
 // Well-known video used as the health-check probe.
 // Must exist, be public, and have English captions.
 const HEALTH_CHECK_VIDEO = 'WUvTyaaNkzM'
+
+// Circuit breaker — remember dead instances
+const deadInstances = new Map<string, number>()
+
+function isInstanceDead(inst: string): boolean {
+  const deadAt = deadInstances.get(inst)
+  if (!deadAt) return false
+  if (Date.now() - deadAt > CIRCUIT_BREAKER_TTL) {
+    deadInstances.delete(inst)
+    return false
+  }
+  return true
+}
+
+function markInstanceDead(inst: string): void {
+  deadInstances.set(inst, Date.now())
+}
 
 // ── Internal API shapes ────────────────────────────────────────────────────────
 
@@ -153,18 +171,21 @@ async function probeInstance(inst: string): Promise<string | null> {
   }
 }
 
-// Race all candidate instances; return the first that passes probeInstance.
+// Try instances sequentially (not parallel) — reduces network spam
 async function raceInstances(instances: string[]): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let settled = 0
-    instances.forEach(inst => {
-      probeInstance(inst).then(result => {
-        if (result) resolve(result)
-        else if (++settled === instances.length)
-          reject(new Error('All Invidious instances unreachable'))
-      })
-    })
-  })
+  const alive = instances.filter(inst => !isInstanceDead(inst))
+  
+  if (alive.length === 0) {
+    throw new Error('All Invidious instances unreachable or rate-limited')
+  }
+
+  for (const inst of alive) {
+    const result = await probeInstance(inst)
+    if (result) return result
+    markInstanceDead(inst)
+  }
+
+  throw new Error('All Invidious instances unreachable or rate-limited')
 }
 
 async function workingInstance(): Promise<string> {
