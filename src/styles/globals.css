@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  /* ── SCRIBE Light ── */
+  :root {
+    --background:    0 0% 97%;
+    --surface:       0 0% 100%;
+    --surface-raised:0 0% 95%;
+    --border:        0 0% 87%;
+    --border-hover:  0 0% 72%;
+    --foreground:    0 0% 9%;
+    --muted:         0 0% 52%;
+    --accent:        0 82% 52%;
+    --accent-hover:  0 82% 44%;
+    --accent-foreground: 0 0% 100%;
+    --destructive:   0 82% 52%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* shadcn compat aliases */
+    --primary:              0 82% 52%;
+    --primary-foreground:   0 0% 100%;
+    --card:                 0 0% 100%;
+    --card-foreground:      0 0% 9%;
+    --popover:              0 0% 100%;
+    --popover-foreground:   0 0% 9%;
+    --secondary:            0 0% 93%;
+    --secondary-foreground: 0 0% 9%;
+    --input:                0 0% 87%;
+    --ring:                 0 82% 52%;
+    --radius:               0.75rem;
+  }
+
+  /* ── SCRIBE Dark ── */
+  .dark {
+    --background:    0 0% 3.1%;
+    --surface:       0 0% 6.7%;
+    --surface-raised:0 0% 9.4%;
+    --border:        0 0% 12.5%;
+    --border-hover:  0 0% 22%;
+    --foreground:    0 0% 94.9%;
+    --muted:         0 0% 42%;
+    --accent:        0 82% 60%;
+    --accent-hover:  0 82% 52%;
+    --accent-foreground: 0 0% 100%;
+    --destructive:   0 82% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --primary:              0 82% 60%;
+    --primary-foreground:   0 0% 100%;
+    --card:                 0 0% 6.7%;
+    --card-foreground:      0 0% 94.9%;
+    --popover:              0 0% 8%;
+    --popover-foreground:   0 0% 94.9%;
+    --secondary:            0 0% 11%;
+    --secondary-foreground: 0 0% 94.9%;
+    --input:                0 0% 12.5%;
+    --ring:                 0 82% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  ::selection {
+    background: hsl(var(--accent) / 0.25);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  /* Glass — for sticky header */
+  .glass {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    background-color: hsl(var(--background) / 0.8);
+  }
+
+  /* Thin scrollbar for transcript panels */
+  .scrollbar-thin::-webkit-scrollbar        { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track  { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb  {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted));
+  }
+
+  /* Accent glow — used on focused inputs */
+  .glow-accent {
+    box-shadow: 0 0 0 1px hsl(var(--accent) / 0.4), 0 0 12px hsl(var(--accent) / 0.12);
+  }
+}
