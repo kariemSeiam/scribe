@@ -1,11 +1,11 @@
-import type { FC } from 'react'
 import Image from 'next/image'
+import type { LucideIcon } from 'lucide-react'
 import { Eye, Clock, Calendar, User } from 'lucide-react'
 import { formatDuration, formatDate, formatNumber } from '@/lib/utils'
 import type { VideoInfo } from '@/types'
 
 interface MetaItem {
-  icon: FC<{ className?: string }>
+  Icon: LucideIcon
   label: string
 }
 
@@ -14,12 +14,14 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ videoInfo }: VideoCardProps) {
-  const meta: MetaItem[] = [
-    videoInfo.author ? { icon: User, label: videoInfo.author } : null,
-    videoInfo.viewCount > 0 ? { icon: Eye, label: formatNumber(videoInfo.viewCount) } : null,
-    videoInfo.duration > 0 ? { icon: Clock, label: formatDuration(videoInfo.duration) } : null,
-    videoInfo.uploadDate ? { icon: Calendar, label: formatDate(videoInfo.uploadDate) } : null,
-  ].filter((x): x is MetaItem => x !== null)
+  const meta: MetaItem[] = (
+    [
+      videoInfo.author       ? { Icon: User,     label: videoInfo.author }                    : null,
+      videoInfo.viewCount > 0 ? { Icon: Eye,     label: formatNumber(videoInfo.viewCount) }   : null,
+      videoInfo.duration > 0  ? { Icon: Clock,   label: formatDuration(videoInfo.duration) }  : null,
+      videoInfo.uploadDate   ? { Icon: Calendar, label: formatDate(videoInfo.uploadDate) }     : null,
+    ] as (MetaItem | null)[]
+  ).filter((x): x is MetaItem => x !== null)
 
   return (
     <div className="flex gap-4 p-4 rounded-xl bg-surface border border-border">
@@ -40,7 +42,7 @@ export function VideoCard({ videoInfo }: VideoCardProps) {
           {videoInfo.title}
         </h2>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {meta.map(({ icon: Icon, label }) => (
+          {meta.map(({ Icon, label }) => (
             <span key={label} className="flex items-center gap-1 text-xs text-muted font-mono">
               <Icon className="h-3 w-3 shrink-0" />
               {label}
