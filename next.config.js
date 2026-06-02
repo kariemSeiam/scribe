@@ -6,10 +6,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'i.ytimg.com' },
       { protocol: 'https', hostname: 'yt3.ggpht.com' },
       { protocol: 'https', hostname: '*.googleusercontent.com' },
-      // Invidious instances proxy thumbnails through themselves
-      { protocol: 'https', hostname: '*.riverside.rocks' },
-      { protocol: 'https', hostname: '*.datura.network' },
-      { protocol: 'https', hostname: '*.cdaut.de' },
     ],
     unoptimized: true,
   },
