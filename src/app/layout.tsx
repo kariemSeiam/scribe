@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     'Extract transcripts from any YouTube video, playlist, or channel. Free. No API key. No login. Export as TXT, SRT, Markdown, or JSON.',
   keywords: ['youtube', 'transcript', 'captions', 'extractor', 'subtitles', 'scribe'],
   icons: {
-    icon: '/favicon.svg',
+    icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/favicon.svg`,
   },
   openGraph: {
     title: 'SCRIBE — Every word, captured.',

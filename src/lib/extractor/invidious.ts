@@ -1,26 +1,25 @@
 import type { VideoInfo, PlaylistInfo, ChannelInfo, TranscriptSegment } from '@/types'
 
-// Static fallback — verified alive 2026-06. Dynamic discovery runs first in practice.
+// Instances with confirmed CORS on their API endpoints (2026-06).
+// Kept intentionally small — dynamic discovery via api.invidious.io handles expansion.
+// Only list instances that return Access-Control-Allow-Origin: * on API responses.
 const STATIC_INSTANCES = [
+  'https://y.com.sb',
+  'https://invidious.flokinet.to',
+  'https://invidious.darkness.services',
+  'https://inv.nadeko.net',
   'https://invidious.nerdvpn.de',
-  'https://invidious.protokolla.fi',
-  'https://inv.riverside.rocks',
-  'https://invidious.privacydev.net',
-  'https://iv.datura.network',
-  'https://yt.cdaut.de',
-  'https://invidious.fdn.fr',
-  'https://invidious.perennialte.ch',
-  'https://invidious.lunar.icu',
-  'https://invidious.reallyaweso.me',
-  'https://invidious.jing.rocks',
-  'https://inv.tux.pizza',
 ] as const
 
-const INSTANCE_TIMEOUT = 5_000
+const INSTANCE_TIMEOUT = 6_000
 const API_TIMEOUT = 10_000
 const CAPTION_TIMEOUT = 14_000
 const DISCOVERY_TIMEOUT = 4_000
 const CACHE_TTL = 10 * 60 * 1000
+
+// Well-known video used as the health-check probe.
+// Must exist, be public, and have English captions.
+const HEALTH_CHECK_VIDEO = 'WUvTyaaNkzM'
 
 // ── Internal API shapes ────────────────────────────────────────────────────────
 
@@ -139,21 +138,31 @@ async function discoverInstances(): Promise<string[]> {
   }
 }
 
-// Race all candidate instances; return the first to respond with HTTP 200.
+// Verify an instance by probing the actual video API endpoint — not just /stats.
+// Checks: HTTP 200, CORS header present, valid JSON with videoId field.
+async function probeInstance(inst: string): Promise<string | null> {
+  try {
+    const res = await timedFetch(`${inst}/api/v1/videos/${HEALTH_CHECK_VIDEO}`, INSTANCE_TIMEOUT)
+    if (!res.ok) return null
+    const acao = res.headers.get('access-control-allow-origin')
+    if (!acao) return null
+    const data = await res.json().catch(() => null)
+    return data?.videoId ? inst : null
+  } catch {
+    return null
+  }
+}
+
+// Race all candidate instances; return the first that passes probeInstance.
 async function raceInstances(instances: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     let settled = 0
     instances.forEach(inst => {
-      timedFetch(`${inst}/api/v1/stats`, INSTANCE_TIMEOUT)
-        .then(res => {
-          if (res.ok) resolve(inst)
-          else if (++settled === instances.length)
-            reject(new Error('All Invidious instances unreachable'))
-        })
-        .catch(() => {
-          if (++settled === instances.length)
-            reject(new Error('All Invidious instances unreachable'))
-        })
+      probeInstance(inst).then(result => {
+        if (result) resolve(result)
+        else if (++settled === instances.length)
+          reject(new Error('All Invidious instances unreachable'))
+      })
     })
   })
 }

@@ -1,6 +1,7 @@
 import { extractVideoId, extractPlaylistId, extractChannelId } from '@/lib/utils'
 import { fetchVideoData, fetchPlaylistData, fetchChannelData } from './invidious'
 import { fetchYouTubeCaptions } from './yt-captions'
+import { fetchOEmbedMetadata } from './oembed'
 import { summarize } from '@/lib/summarize'
 import type { ExtractionResult, VideoInfo } from '@/types'
 
@@ -19,46 +20,31 @@ export async function extract(url: string, onProgress: Progress): Promise<Extrac
 
   // ── Video ──────────────────────────────────────────────────────────────────
   if (videoId) {
-    onProgress('Finding a working Invidious instance…')
+    onProgress('Looking for a working Invidious instance…')
 
     let videoInfo: VideoInfo
-    let transcript = await Promise.resolve([]).then(() => []) as Awaited<ReturnType<typeof fetchYouTubeCaptions>>
-    let invidiousFailed = false
+    let transcript: ReturnType<typeof fetchYouTubeCaptions> extends Promise<infer T> ? T : never = []
 
+    // Primary: Invidious — rich metadata + captions in one request
     try {
       const result = await fetchVideoData(videoId)
       videoInfo = result.videoInfo
       transcript = result.transcript
     } catch {
-      invidiousFailed = true
-      // Construct minimal videoInfo — thumbnail is always resolvable from YouTube CDN
-      videoInfo = {
-        id: videoId,
-        title: 'YouTube Video',
-        author: '',
-        authorId: '',
-        thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        duration: 0,
-        uploadDate: '',
-        viewCount: 0,
-        description: '',
-      }
+      // Invidious unreachable — fetch basic metadata via YouTube oEmbed (always works)
+      onProgress('Fetching video info from YouTube…')
+      videoInfo = await fetchOEmbedMetadata(videoId)
     }
 
+    // Caption fallback: YouTube timedtext via CORS proxies
     if (transcript.length === 0) {
-      onProgress(
-        invidiousFailed
-          ? 'Invidious unavailable — trying YouTube directly…'
-          : 'No captions via Invidious — trying YouTube directly…'
-      )
+      onProgress('Fetching captions from YouTube…')
       transcript = await fetchYouTubeCaptions(videoId)
     }
 
     if (transcript.length === 0) {
       throw new Error(
-        invidiousFailed
-          ? 'Could not reach any extraction source. Check your connection or try again later.'
-          : 'No captions found. This video may not have subtitles enabled.'
+        'No captions found. This video may not have subtitles, or caption access is temporarily restricted.',
       )
     }
 
