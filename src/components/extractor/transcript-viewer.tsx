@@ -61,7 +61,7 @@ export function TranscriptViewer({ segments, videoInfo }: TranscriptViewerProps)
       <div className="divide-y divide-border/50">
         {visible.length === 0 ? (
           <p className="py-10 text-center text-muted text-sm font-mono">
-            No segments match "{query}"
+            No segments match &ldquo;{query}&rdquo;
           </p>
         ) : (
           visible.map((seg, i) => (
